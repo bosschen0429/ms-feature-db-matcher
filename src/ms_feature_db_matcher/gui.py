@@ -65,7 +65,7 @@ FONTS = {
 MODE_META = {
     MatchMode.DNA: {
         "title": "DNA",
-        "subtitle": "Accept Mz, m/z, Precursor Ion m/z, Charged monoisotopic mass, [M+H]+ Protonated Mass, etc.",
+        "subtitle": "Mz, m/z, Precursor Ion m/z, monoisotopic mass, and more",
     },
     MatchMode.RNA: {
         "title": "RNA",
