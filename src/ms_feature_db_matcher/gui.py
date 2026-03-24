@@ -105,10 +105,10 @@ def path_badge_text(current: Path, default: Path) -> str:
 
 def describe_mode(mode: MatchMode) -> str:
     if mode == MatchMode.DNA:
-        return "Compare dataset m/z against DNA masses (Mz, m/z, Precursor Ion m/z, Charged monoisotopic mass, [M+H]+ Protonated Mass)."
+        return "DNA database only."
     if mode == MatchMode.RNA:
-        return "Compare dataset m/z against RNA masses (all DNA columns plus [M+H]+)."
-    return "Run DNA first, then RNA, with the same Mz parsing rules across both databases."
+        return "RNA database only."
+    return "DNA first, then RNA."
 
 
 def status_appearance(message: str) -> dict[str, str]:
@@ -581,13 +581,9 @@ class MatcherApp:
         self.summary_var.set(
             "\n".join(
                 [
-                    describe_mode(mode),
-                    "Excel inputs: every worksheet with a supported mass column is matched and exported.",
-                    "Accepted mass columns: Feature, Mz, m/z, Mz/RT, Precursor Ion m/z, Charged monoisotopic mass, [M+H]+ Protonated Mass.",
-                    "Parsing rule: if a value contains '/', only the text before '/' is used as m/z.",
-                    "Tolerance: abs(feature_mz - db_mz) / db_mz * 1e6 <= 20.",
-                    f"Output: Matched Formula + Matched Short name appended to {self.state.output_dir}.",
-                    "Formatting: DNA names stay blue and RNA names stay red.",
+                    f"Mode: {describe_mode(mode)}",
+                    f"Tolerance: 20 ppm",
+                    f"Output: {self.state.output_dir}",
                 ]
             )
         )

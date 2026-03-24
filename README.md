@@ -1,72 +1,105 @@
 # MS Feature DB Matcher
 
-Standalone Tkinter desktop app for matching dataset `Feature` values against DNA and RNA databases, then exporting a new Excel workbook into the project's `Output/` folder.
+Standalone desktop app for matching mass spectrometry features against DNA / RNA databases with a 20 ppm tolerance rule. Outputs an Excel workbook with matched Formula and Short name columns.
 
-## What It Does
+## Download
 
-- Imports one dataset file and up to two database files
-- Supports `DNA`, `RNA`, and `Both` matching modes
-- Extracts the `mz` value from the `Feature` column by taking the text before the first `/`
-- Matches with a `20 ppm` tolerance
-- Writes a new Excel file with:
-  - `No match` when nothing matches
-  - `Invalid Feature` when the source value cannot be parsed
-  - blue DNA short names
-  - red RNA short names
-  - DNA-before-RNA ordering in `Both` mode
+Pre-built binaries for Windows (.exe) and macOS (.app) are available on the [Releases](https://github.com/bosschen0429/ms-feature-db-matcher/releases) page.
 
-## Supported Dataset Formats
+### macOS Note
 
-- `.csv`
-- `.tsv`
-- `.xlsx`
-- `.xls`
+The app is not code-signed. On first launch, right-click the app and choose **Open**, then confirm in the dialog. Alternatively, go to **System Settings > Privacy & Security** and allow the app.
 
-The dataset must contain a `Feature` column.
+## Accepted Dataset Columns
+
+The dataset file must contain at least one of the following columns (case-insensitive):
+
+| Column Name | Example Value |
+|---|---|
+| Feature | `268.1052/17.59(Mz/RT)` |
+| Mz | `268.1052` |
+| m/z | `268.1052` |
+| Mz/RT | `268.1052/17.59` |
+| Precursor Ion m/z | `268.1052` |
+| Charged monoisotopic mass | `268.1052` |
+
+**Parsing rule**: if a value contains `/`, only the text before the first `/` is used as m/z.
+
+## Accepted Database Mass Columns
+
+When matching, the app looks for mass values in these database columns:
+
+| Column Name | Mode |
+|---|---|
+| Mz | DNA & RNA |
+| m/z | DNA & RNA |
+| Mz/RT | DNA & RNA |
+| Precursor Ion m/z | DNA & RNA |
+| Charged monoisotopic mass | DNA & RNA |
+| [M+H]+ Protonated Mass | DNA & RNA |
+| [M+H]+ | RNA only |
+
+The database must also contain a **Short name** (or **Compound**) column. A **Formula** (or **Molecular Formula**) column is optional — if present, matched formulas are included in the output.
+
+## Matching Modes
+
+| Mode | Behavior |
+|---|---|
+| DNA | Compare dataset m/z against DNA database masses |
+| RNA | Compare dataset m/z against RNA database masses (includes [M+H]+) |
+| Both | Run DNA first, then RNA; results are merged with DNA before RNA |
+
+## Matching Rule
+
+```
+abs(feature_mz - db_mz) / db_mz * 1e6 <= 20
+```
+
+## Output
+
+- Two columns are appended to the original dataset: **Matched Formula** then **Matched Short name**
+- DNA matches are colored **blue**, RNA matches are colored **red**
+- Multiple matches are joined with `/`
+- `No match` when nothing matches, `Invalid Feature` when the value cannot be parsed
+- Results are saved to an `Output/` folder next to the application
+- If the filename already exists, a timestamp suffix is appended
 
 ## Default Databases
 
-- DNA:
-  `C:/Users/user/Desktop/NTU cancer/Database/datatables.xlsx`
-- RNA:
-  `C:/Users/user/Desktop/NTU cancer/Database/RNA modification for Lab.xlsx`
+Bundled in the `database/` folder:
 
-You can replace either database file from the GUI.
+| File | Mode |
+|---|---|
+| `datatables.xlsx` | DNA |
+| `natural_modifications.xlsx` | RNA |
 
-## Matching Rules
+You can replace either database from the GUI.
 
-- Dataset `Feature` example:
-  `268.1052/17.59(Mz/RT)`
-- Parsed feature `mz`:
-  `268.1052`
-- DNA compares against `Charged monoisotopic mass`
-- RNA compares against `[M+H]+`
-- Formula:
-  `abs(feature_mz - db_mz) / db_mz * 1e6 <= 20`
+## Supported Dataset Formats
 
-## Output Behavior
+`.csv`, `.tsv`, `.xlsx`, `.xls`
 
-- The app auto-creates `Output/` under the project root
-- Results are written as `<input_stem>_matched.xlsx`
-- If the filename already exists, a timestamp suffix is appended
-- The GUI includes an `Open Output Folder` button
+For Excel files with multiple sheets, every sheet containing a supported m/z column is matched and exported.
 
-## Run the App
-
-Install dependencies in your Python environment:
+## Development
 
 ```bash
 pip install -e .
-```
-
-Launch the desktop app:
-
-```bash
 python app.py
 ```
 
-Run the test suite:
+Run tests:
 
 ```bash
+pip install pytest
 pytest -v
 ```
+
+## Build from Source
+
+```bash
+pip install .[build]
+pyinstaller ms_feature_db_matcher.spec
+```
+
+Output binary appears in `dist/`.
