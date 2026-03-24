@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ms-feature-db-matcher"
+version = "0.1.0"
+description = "Standalone Tkinter desktop app for MS feature database matching"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openpyxl>=3.1",
+    "pandas>=2.2",
+]
+
+[project.optional-dependencies]
+build = ["pyinstaller>=6.0"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+ms-feature-db-matcher = "ms_feature_db_matcher.gui:launch_app"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+addopts = "-p no:cacheprovider"
+norecursedirs = [
+    ".tmp",
+    "pytest-cache-files-*",
+    "pytest_tmp",
+    "test_artifacts",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

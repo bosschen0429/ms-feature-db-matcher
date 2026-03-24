@@ -1,0 +1,69 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: MS-Feature-DB-Matcher-Windows.exe
+            build_output: "dist/MS Feature DB Matcher.exe"
+          - os: macos-latest
+            artifact: MS-Feature-DB-Matcher-macOS.zip
+            build_output: "dist/MS Feature DB Matcher.app"
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install .[build]
+
+      - name: Build with PyInstaller
+        run: pyinstaller ms_feature_db_matcher.spec
+
+      - name: Package macOS app
+        if: runner.os == 'macOS'
+        run: |
+          cd dist
+          zip -r "../${{ matrix.artifact }}" "MS Feature DB Matcher.app"
+
+      - name: Rename Windows exe
+        if: runner.os == 'Windows'
+        run: copy "dist\MS Feature DB Matcher.exe" "${{ matrix.artifact }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
