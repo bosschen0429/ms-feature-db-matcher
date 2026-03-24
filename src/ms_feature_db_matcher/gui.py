@@ -44,15 +44,22 @@ COLORS = {
     "error_fg": "#B42318",
 }
 
+def _system_font() -> str:
+    if sys.platform == "darwin":
+        return "Helvetica Neue"
+    return "Segoe UI"
+
+_FONT = _system_font()
+
 FONTS = {
-    "title": ("Segoe UI", 19, "bold"),
-    "subtitle": ("Segoe UI", 10),
-    "card_title": ("Segoe UI", 11, "bold"),
-    "label": ("Segoe UI", 9, "bold"),
-    "text": ("Segoe UI", 10),
-    "small": ("Segoe UI", 9),
-    "button": ("Segoe UI", 10, "bold"),
-    "badge": ("Segoe UI", 8, "bold"),
+    "title": (_FONT, 19, "bold"),
+    "subtitle": (_FONT, 10),
+    "card_title": (_FONT, 11, "bold"),
+    "label": (_FONT, 9, "bold"),
+    "text": (_FONT, 10),
+    "small": (_FONT, 9),
+    "button": (_FONT, 10, "bold"),
+    "badge": (_FONT, 8, "bold"),
 }
 
 MODE_META = {
