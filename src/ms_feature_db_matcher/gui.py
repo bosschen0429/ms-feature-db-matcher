@@ -44,37 +44,24 @@ COLORS = {
     "error_fg": "#B42318",
 }
 
+
 def _system_font() -> str:
     if sys.platform == "darwin":
         return "Helvetica Neue"
     return "Segoe UI"
 
+
 _FONT = _system_font()
 
 FONTS = {
-    "title": (_FONT, 19, "bold"),
-    "subtitle": (_FONT, 10),
-    "card_title": (_FONT, 11, "bold"),
-    "label": (_FONT, 9, "bold"),
-    "text": (_FONT, 10),
-    "small": (_FONT, 9),
-    "button": (_FONT, 10, "bold"),
-    "badge": (_FONT, 8, "bold"),
-}
-
-MODE_META = {
-    MatchMode.DNA: {
-        "title": "DNA",
-        "subtitle": "Mz, m/z, Precursor Ion m/z, monoisotopic mass, and more",
-    },
-    MatchMode.RNA: {
-        "title": "RNA",
-        "subtitle": "All DNA columns plus [M+H]+",
-    },
-    MatchMode.BOTH: {
-        "title": "Both",
-        "subtitle": "DNA first, then RNA with shared mass rules",
-    },
+    "title": (_FONT, 20, "bold"),
+    "subtitle": (_FONT, 11),
+    "card_title": (_FONT, 12, "bold"),
+    "label": (_FONT, 10, "bold"),
+    "text": (_FONT, 11),
+    "small": (_FONT, 10),
+    "button": (_FONT, 11, "bold"),
+    "badge": (_FONT, 9, "bold"),
 }
 
 
@@ -200,8 +187,8 @@ class MatcherApp:
         self.state = state
         self.root.title("MS Feature DB Matcher")
         self.root.configure(bg=COLORS["app_bg"])
-        self.root.geometry("1040x660")
-        self.root.minsize(920, 620)
+        self.root.geometry("880x520")
+        self.root.minsize(780, 460)
 
         self.dataset_var = tk.StringVar(value="")
         self.dna_var = tk.StringVar(value=str(state.dna_db_path))
@@ -210,7 +197,6 @@ class MatcherApp:
         self.status_var = tk.StringVar(value=f"Output folder: {state.output_dir}")
         self.status_title_var = tk.StringVar()
         self.header_badge_var = tk.StringVar()
-        self.summary_var = tk.StringVar()
         self.dataset_badge_var = tk.StringVar()
         self.dna_badge_var = tk.StringVar()
         self.rna_badge_var = tk.StringVar()
@@ -232,13 +218,14 @@ class MatcherApp:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
 
-        shell = tk.Frame(self.root, bg=COLORS["app_bg"], padx=24, pady=24)
+        shell = tk.Frame(self.root, bg=COLORS["app_bg"], padx=20, pady=16)
         shell.grid(sticky="nsew")
         shell.columnconfigure(0, weight=1)
         shell.rowconfigure(1, weight=1)
 
+        # ── Header ──
         header = tk.Frame(shell, bg=COLORS["app_bg"])
-        header.grid(row=0, column=0, sticky="ew", pady=(0, 18))
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 14))
         header.columnconfigure(0, weight=1)
 
         header_text = tk.Frame(header, bg=COLORS["app_bg"])
@@ -252,11 +239,11 @@ class MatcherApp:
         ).grid(row=0, column=0, sticky="w")
         tk.Label(
             header_text,
-            text="Match dataset features against DNA and RNA databases with a 20 ppm rule.",
+            text="Match dataset features against DNA / RNA databases  |  20 ppm tolerance",
             bg=COLORS["app_bg"],
             fg=COLORS["muted"],
             font=FONTS["subtitle"],
-        ).grid(row=1, column=0, sticky="w", pady=(4, 0))
+        ).grid(row=1, column=0, sticky="w", pady=(2, 0))
 
         self.header_badge_label = tk.Label(
             header,
@@ -269,13 +256,15 @@ class MatcherApp:
         )
         self.header_badge_label.grid(row=0, column=1, sticky="e")
 
+        # ── Body ──
         body = tk.Frame(shell, bg=COLORS["app_bg"])
         body.grid(row=1, column=0, sticky="nsew")
         body.columnconfigure(0, weight=3)
         body.columnconfigure(1, weight=2)
+        body.rowconfigure(0, weight=1)
 
         left_card = self._create_card(body, "Input Files")
-        left_card.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
+        left_card.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         left_card.columnconfigure(0, weight=1)
 
         self._add_file_picker(
@@ -309,36 +298,18 @@ class MatcherApp:
             filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")],
         )
 
-        right_column = tk.Frame(body, bg=COLORS["app_bg"])
-        right_column.grid(row=0, column=1, sticky="nsew")
-        right_column.rowconfigure(1, weight=1)
-
-        mode_card = self._create_card(right_column, "Matching Mode")
-        mode_card.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        mode_card = self._create_card(body, "Matching Mode")
+        mode_card.grid(row=0, column=1, sticky="new")
         for column in range(3):
             mode_card.columnconfigure(column, weight=1)
 
         for index, mode in enumerate((MatchMode.DNA, MatchMode.RNA, MatchMode.BOTH)):
             tile = self._create_mode_tile(mode_card, mode)
-            tile["frame"].grid(row=1, column=index, sticky="nsew", padx=(0 if index == 0 else 8, 0))
+            tile["frame"].grid(row=1, column=index, sticky="nsew", padx=(0 if index == 0 else 6, 0))
 
-        summary_card = self._create_card(right_column, "Run Summary")
-        summary_card.grid(row=1, column=0, sticky="nsew")
-        summary_card.columnconfigure(0, weight=1)
-        self.summary_label = tk.Label(
-            summary_card,
-            textvariable=self.summary_var,
-            bg=COLORS["card_bg"],
-            fg=COLORS["text"],
-            justify="left",
-            anchor="nw",
-            wraplength=300,
-            font=FONTS["text"],
-        )
-        self.summary_label.grid(row=1, column=0, sticky="nsew")
-
+        # ── Footer ──
         footer = tk.Frame(shell, bg=COLORS["app_bg"])
-        footer.grid(row=2, column=0, sticky="ew", pady=(18, 0))
+        footer.grid(row=2, column=0, sticky="ew", pady=(14, 0))
         footer.columnconfigure(0, weight=1)
 
         self.status_frame = tk.Frame(
@@ -346,10 +317,10 @@ class MatcherApp:
             bg=COLORS["ready_bg"],
             highlightthickness=1,
             highlightbackground=COLORS["card_border"],
-            padx=16,
-            pady=14,
+            padx=14,
+            pady=10,
         )
-        self.status_frame.grid(row=0, column=0, sticky="ew", padx=(0, 12))
+        self.status_frame.grid(row=0, column=0, sticky="ew", padx=(0, 10))
         self.status_frame.columnconfigure(0, weight=1)
         self.status_title_label = tk.Label(
             self.status_frame,
@@ -368,9 +339,9 @@ class MatcherApp:
             font=FONTS["small"],
             anchor="w",
             justify="left",
-            wraplength=560,
+            wraplength=480,
         )
-        self.status_detail_label.grid(row=1, column=0, sticky="w", pady=(4, 0))
+        self.status_detail_label.grid(row=1, column=0, sticky="w", pady=(2, 0))
 
         button_bar = tk.Frame(footer, bg=COLORS["app_bg"])
         button_bar.grid(row=0, column=1, sticky="e")
@@ -382,14 +353,14 @@ class MatcherApp:
             primary=False,
             width=18,
         )
-        open_button.grid(row=0, column=0, padx=(0, 10))
+        open_button.grid(row=0, column=0, padx=(0, 8))
 
         self.run_button = self._make_button(
             button_bar,
             text="Run Matching",
             command=self._run,
             primary=True,
-            width=16,
+            width=14,
         )
         self.run_button.grid(row=0, column=1)
 
@@ -399,8 +370,8 @@ class MatcherApp:
             bg=COLORS["card_bg"],
             highlightthickness=1,
             highlightbackground=COLORS["card_border"],
-            padx=18,
-            pady=18,
+            padx=16,
+            pady=14,
         )
         tk.Label(
             outer,
@@ -409,7 +380,7 @@ class MatcherApp:
             fg=COLORS["title"],
             font=FONTS["card_title"],
             anchor="w",
-        ).grid(row=0, column=0, sticky="w", pady=(0, 14))
+        ).grid(row=0, column=0, sticky="w", pady=(0, 10))
         return outer
 
     def _add_file_picker(
@@ -423,11 +394,11 @@ class MatcherApp:
         filetypes,
     ) -> None:
         row_frame = tk.Frame(frame, bg=COLORS["card_bg"])
-        row_frame.grid(row=row + 1, column=0, sticky="ew", pady=(0, 14 if row < 2 else 0))
+        row_frame.grid(row=row + 1, column=0, sticky="ew", pady=(0, 10 if row < 2 else 0))
         row_frame.columnconfigure(0, weight=1)
 
         header = tk.Frame(row_frame, bg=COLORS["card_bg"])
-        header.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 6))
+        header.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 4))
         header.columnconfigure(0, weight=1)
 
         tk.Label(
@@ -446,7 +417,7 @@ class MatcherApp:
             fg=COLORS["muted"],
             font=FONTS["badge"],
             padx=10,
-            pady=3,
+            pady=2,
         )
         badge.grid(row=0, column=1, sticky="e")
 
@@ -463,9 +434,9 @@ class MatcherApp:
             font=FONTS["text"],
             insertbackground=COLORS["title"],
         )
-        entry.grid(row=1, column=0, sticky="ew", ipadx=10, ipady=10, padx=(0, 10))
+        entry.grid(row=1, column=0, sticky="ew", ipadx=8, ipady=8, padx=(0, 8))
 
-        browse = self._make_button(row_frame, text="Browse", command=command, primary=False, width=10)
+        browse = self._make_button(row_frame, text="Browse", command=command, primary=False, width=9)
         browse.grid(row=1, column=1, sticky="e")
         browse.configure(command=lambda: command(filetypes))
 
@@ -476,34 +447,23 @@ class MatcherApp:
             highlightthickness=1,
             highlightbackground=COLORS["secondary_border"],
             cursor="hand2",
-            padx=12,
-            pady=12,
+            padx=10,
+            pady=10,
         )
         title = tk.Label(
             frame,
-            text=MODE_META[mode]["title"],
+            text=mode.value,
             bg=COLORS["secondary_bg"],
             fg=COLORS["title"],
             font=FONTS["label"],
             cursor="hand2",
         )
         title.grid(row=0, column=0, sticky="w")
-        subtitle = tk.Label(
-            frame,
-            text=MODE_META[mode]["subtitle"],
-            bg=COLORS["secondary_bg"],
-            fg=COLORS["muted"],
-            font=FONTS["small"],
-            justify="left",
-            wraplength=150,
-            cursor="hand2",
-        )
-        subtitle.grid(row=1, column=0, sticky="w", pady=(6, 0))
 
-        for widget in (frame, title, subtitle):
+        for widget in (frame, title):
             widget.bind("<Button-1>", lambda _event, selected=mode: self._select_mode(selected))
 
-        self.mode_tiles[mode] = {"frame": frame, "title": title, "subtitle": subtitle}
+        self.mode_tiles[mode] = {"frame": frame, "title": title}
         return self.mode_tiles[mode]
 
     def _make_button(
@@ -531,8 +491,8 @@ class MatcherApp:
             bd=0,
             relief="flat",
             font=FONTS["button"],
-            padx=18,
-            pady=12,
+            padx=16,
+            pady=10,
             cursor="hand2",
             width=width,
         )
@@ -565,7 +525,6 @@ class MatcherApp:
         dataset_text = self.dataset_var.get().strip()
         dna_path = Path(self.dna_var.get()) if self.dna_var.get().strip() else DEFAULT_DNA_PATH
         rna_path = Path(self.rna_var.get()) if self.rna_var.get().strip() else DEFAULT_RNA_PATH
-        mode = MatchMode(self.mode_var.get())
 
         self.dataset_badge_var.set("Required" if not dataset_text else "Ready")
         self.dna_badge_var.set(path_badge_text(dna_path, DEFAULT_DNA_PATH))
@@ -578,17 +537,7 @@ class MatcherApp:
             else:
                 self.header_badge_label.configure(bg=COLORS["warning_bg"], fg=COLORS["warning_fg"])
 
-        self.summary_var.set(
-            "\n".join(
-                [
-                    f"Mode: {describe_mode(mode)}",
-                    f"Tolerance: 20 ppm",
-                    f"Output: {self.state.output_dir}",
-                ]
-            )
-        )
-
-        self._refresh_mode_tiles(mode)
+        self._refresh_mode_tiles(MatchMode(self.mode_var.get()))
         self._refresh_status()
 
         if self.run_button is not None:
@@ -599,11 +548,9 @@ class MatcherApp:
             selected = mode == selected_mode
             frame_bg = COLORS["primary"] if selected else COLORS["secondary_bg"]
             title_fg = COLORS["button_text"] if selected else COLORS["title"]
-            subtitle_fg = "#D6F4EF" if selected else COLORS["muted"]
             border = COLORS["primary"] if selected else COLORS["secondary_border"]
             widgets["frame"].configure(bg=frame_bg, highlightbackground=border)
             widgets["title"].configure(bg=frame_bg, fg=title_fg)
-            widgets["subtitle"].configure(bg=frame_bg, fg=subtitle_fg)
 
     def _refresh_status(self) -> None:
         appearance = status_appearance(self.status_var.get())
