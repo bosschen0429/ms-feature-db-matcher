@@ -9,6 +9,22 @@ def _base_path() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def _app_dir() -> Path:
+    """Directory where the application lives (next to .exe or .app).
+
+    - Windows: folder containing MS Feature DB Matcher.exe
+    - macOS .app: folder containing MS Feature DB Matcher.app
+    - Dev mode: project root
+    """
+    if getattr(sys, "frozen", False):
+        exe = Path(sys.executable).resolve()
+        # macOS .app bundle: exe is inside Foo.app/Contents/MacOS/
+        if sys.platform == "darwin" and ".app/Contents/MacOS" in str(exe):
+            return exe.parents[3]
+        return exe.parent
+    return Path(__file__).resolve().parents[2]
+
+
 def database_dir() -> Path:
     return _base_path() / "database"
 
@@ -18,10 +34,10 @@ DEFAULT_RNA_PATH = database_dir() / "natural_modifications.xlsx"
 
 
 def project_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return _app_dir()
 
 
 def ensure_output_dir() -> Path:
-    output = project_root() / "Output"
+    output = _app_dir() / "Output"
     output.mkdir(parents=True, exist_ok=True)
     return output
