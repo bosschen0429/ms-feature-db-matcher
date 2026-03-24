@@ -14,10 +14,10 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            artifact: MS-Feature-DB-Matcher-Windows.exe
+            platform: Windows
             build_output: "dist/MS Feature DB Matcher.exe"
           - os: macos-latest
-            artifact: MS-Feature-DB-Matcher-macOS.zip
+            platform: macOS
             build_output: "dist/MS Feature DB Matcher.app"
 
     runs-on: ${{ matrix.os }}
@@ -37,21 +37,35 @@ jobs:
       - name: Build with PyInstaller
         run: pyinstaller ms_feature_db_matcher.spec
 
-      - name: Package macOS app
-        if: runner.os == 'macOS'
+      - name: Package release folder
+        shell: bash
         run: |
-          cd dist
-          zip -r "../${{ matrix.artifact }}" "MS Feature DB Matcher.app"
+          TAG="${GITHUB_REF_NAME}"
+          FOLDER="MS-Feature-DB-Matcher-${{ matrix.platform }}-${TAG}"
+          mkdir -p "${FOLDER}/Output"
+          cp README.md "${FOLDER}/"
+          if [ "${{ matrix.platform }}" = "Windows" ]; then
+            cp "dist/MS Feature DB Matcher.exe" "${FOLDER}/"
+          else
+            cp -R "dist/MS Feature DB Matcher.app" "${FOLDER}/"
+          fi
 
-      - name: Rename Windows exe
-        if: runner.os == 'Windows'
-        run: copy "dist\MS Feature DB Matcher.exe" "${{ matrix.artifact }}"
+      - name: Create zip archive
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          FOLDER="MS-Feature-DB-Matcher-${{ matrix.platform }}-${TAG}"
+          if [ "${{ matrix.platform }}" = "Windows" ]; then
+            7z a "${FOLDER}.zip" "${FOLDER}"
+          else
+            zip -r "${FOLDER}.zip" "${FOLDER}"
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}
+          name: MS-Feature-DB-Matcher-${{ matrix.platform }}
+          path: "MS-Feature-DB-Matcher-${{ matrix.platform }}-*.zip"
 
   release:
     needs: build
