@@ -24,14 +24,15 @@ COLORS = {
     "title": "#18324A",
     "text": "#324C63",
     "muted": "#5E7288",
-    "soft_bg": "#F7FAFC",
+    "soft_bg": "#EDF2F7",
     "input_bg": "#F8FBFD",
     "primary": "#0F766E",
     "primary_active": "#0C5D57",
     "button_text": "#FFFFFF",
+    "disabled_text": "#B0DDD9",
     "secondary_border": "#B8C8D8",
-    "secondary_bg": "#FFFFFF",
-    "secondary_hover": "#EEF4F8",
+    "secondary_bg": "#F0F4F8",
+    "secondary_hover": "#E2E9F0",
     "dna": "#2563EB",
     "rna": "#DC2626",
     "warning_bg": "#FFF7E8",
@@ -54,14 +55,14 @@ def _system_font() -> str:
 _FONT = _system_font()
 
 FONTS = {
-    "title": (_FONT, 20, "bold"),
-    "subtitle": (_FONT, 11),
-    "card_title": (_FONT, 12, "bold"),
+    "title": (_FONT, 16, "bold"),
+    "subtitle": (_FONT, 10),
+    "card_title": (_FONT, 11, "bold"),
     "label": (_FONT, 10, "bold"),
-    "text": (_FONT, 11),
-    "small": (_FONT, 10),
-    "button": (_FONT, 11, "bold"),
-    "badge": (_FONT, 9, "bold"),
+    "text": (_FONT, 10),
+    "small": (_FONT, 9),
+    "button": (_FONT, 10, "bold"),
+    "badge": (_FONT, 9),
 }
 
 
@@ -113,12 +114,28 @@ def status_appearance(message: str) -> dict[str, str]:
             "background": COLORS["success_bg"],
             "foreground": COLORS["success_fg"],
         }
+    if message.startswith("Select a dataset"):
+        return {
+            "tone": "warning",
+            "title": "Dataset Missing",
+            "background": COLORS["warning_bg"],
+            "foreground": COLORS["warning_fg"],
+        }
     return {
         "tone": "ready",
         "title": "Ready to Run",
         "background": COLORS["ready_bg"],
         "foreground": COLORS["ready_fg"],
     }
+
+
+def _truncate_path(path: Path, max_len: int = 50) -> str:
+    text = str(path)
+    if len(text) <= max_len:
+        return text
+    head = text[:15]
+    tail = text[-(max_len - 18):]
+    return f"{head}...{tail}"
 
 
 def open_output_folder(path: Path) -> None:
@@ -187,23 +204,21 @@ class MatcherApp:
         self.state = state
         self.root.title("MS Feature DB Matcher")
         self.root.configure(bg=COLORS["app_bg"])
-        self.root.geometry("880x520")
-        self.root.minsize(780, 460)
+        self.root.geometry("540x570")
+        self.root.minsize(460, 520)
 
         self.dataset_var = tk.StringVar(value="")
         self.dna_var = tk.StringVar(value=str(state.dna_db_path))
         self.rna_var = tk.StringVar(value=str(state.rna_db_path))
         self.mode_var = tk.StringVar(value=MatchMode.BOTH.value)
-        self.status_var = tk.StringVar(value=f"Output folder: {state.output_dir}")
+        self.status_var = tk.StringVar(value="Select a dataset file to start matching.")
         self.status_title_var = tk.StringVar()
-        self.header_badge_var = tk.StringVar()
         self.dataset_badge_var = tk.StringVar()
         self.dna_badge_var = tk.StringVar()
         self.rna_badge_var = tk.StringVar()
 
         self.mode_tiles: dict[MatchMode, dict[str, tk.Widget]] = {}
         self.run_button: tk.Button | None = None
-        self.header_badge_label: tk.Label | None = None
         self.status_frame: tk.Frame | None = None
         self.status_title_label: tk.Label | None = None
         self.status_detail_label: tk.Label | None = None
@@ -218,283 +233,190 @@ class MatcherApp:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
 
-        shell = tk.Frame(self.root, bg=COLORS["app_bg"], padx=20, pady=16)
+        shell = tk.Frame(self.root, bg=COLORS["app_bg"], padx=20, pady=14)
         shell.grid(sticky="nsew")
         shell.columnconfigure(0, weight=1)
         shell.rowconfigure(1, weight=1)
 
         # ── Header ──
         header = tk.Frame(shell, bg=COLORS["app_bg"])
-        header.grid(row=0, column=0, sticky="ew", pady=(0, 14))
-        header.columnconfigure(0, weight=1)
-
-        header_text = tk.Frame(header, bg=COLORS["app_bg"])
-        header_text.grid(row=0, column=0, sticky="w")
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 10))
         tk.Label(
-            header_text,
-            text="MS Feature DB Matcher",
-            bg=COLORS["app_bg"],
-            fg=COLORS["title"],
-            font=FONTS["title"],
+            header, text="MS Feature DB Matcher",
+            bg=COLORS["app_bg"], fg=COLORS["title"], font=FONTS["title"],
         ).grid(row=0, column=0, sticky="w")
         tk.Label(
-            header_text,
-            text="Match dataset features against DNA / RNA databases  |  20 ppm tolerance",
-            bg=COLORS["app_bg"],
-            fg=COLORS["muted"],
-            font=FONTS["subtitle"],
-        ).grid(row=1, column=0, sticky="w", pady=(2, 0))
-
-        self.header_badge_label = tk.Label(
             header,
-            textvariable=self.header_badge_var,
-            bg=COLORS["warning_bg"],
-            fg=COLORS["warning_fg"],
-            font=FONTS["badge"],
-            padx=12,
-            pady=6,
-        )
-        self.header_badge_label.grid(row=0, column=1, sticky="e")
+            text="Match features against DNA / RNA databases  |  20 ppm",
+            bg=COLORS["app_bg"], fg=COLORS["muted"], font=FONTS["subtitle"],
+        ).grid(row=1, column=0, sticky="w", pady=(1, 0))
 
-        # ── Body ──
-        body = tk.Frame(shell, bg=COLORS["app_bg"])
-        body.grid(row=1, column=0, sticky="nsew")
-        body.columnconfigure(0, weight=3)
-        body.columnconfigure(1, weight=2)
-        body.rowconfigure(0, weight=1)
-
-        left_card = self._create_card(body, "Input Files")
-        left_card.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
-        left_card.columnconfigure(0, weight=1)
+        # ── Input Files card ──
+        input_card = self._create_card(shell, "Input Files")
+        input_card.grid(row=1, column=0, sticky="nsew", pady=(0, 8))
+        input_card.columnconfigure(0, weight=1)
 
         self._add_file_picker(
-            left_card,
-            row=0,
-            label="Dataset",
-            variable=self.dataset_var,
-            badge_var=self.dataset_badge_var,
+            input_card, row=0, label="Dataset",
+            variable=self.dataset_var, badge_var=self.dataset_badge_var,
             command=self._choose_dataset,
-            filetypes=[
-                ("Supported files", "*.csv *.tsv *.xlsx *.xls"),
-                ("All files", "*.*"),
-            ],
+            filetypes=[("Supported files", "*.csv *.tsv *.xlsx *.xls"), ("All files", "*.*")],
         )
         self._add_file_picker(
-            left_card,
-            row=1,
-            label="DNA Database",
-            variable=self.dna_var,
-            badge_var=self.dna_badge_var,
+            input_card, row=1, label="DNA Database",
+            variable=self.dna_var, badge_var=self.dna_badge_var,
             command=self._choose_dna_db,
             filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")],
         )
         self._add_file_picker(
-            left_card,
-            row=2,
-            label="RNA Database",
-            variable=self.rna_var,
-            badge_var=self.rna_badge_var,
+            input_card, row=2, label="RNA Database",
+            variable=self.rna_var, badge_var=self.rna_badge_var,
             command=self._choose_rna_db,
             filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")],
         )
 
-        mode_card = self._create_card(body, "Matching Mode")
-        mode_card.grid(row=0, column=1, sticky="new")
-        for column in range(3):
-            mode_card.columnconfigure(column, weight=1)
+        # ── Matching Mode card ──
+        mode_card = self._create_card(shell, "Matching Mode")
+        mode_card.grid(row=2, column=0, sticky="ew", pady=(0, 8))
+        mode_card.columnconfigure(0, weight=1)
+        tile_row = tk.Frame(mode_card, bg=COLORS["card_bg"])
+        tile_row.grid(row=1, column=0, sticky="ew")
+        for col in range(3):
+            tile_row.columnconfigure(col, weight=1, uniform="mode")
+        for idx, mode in enumerate((MatchMode.DNA, MatchMode.RNA, MatchMode.BOTH)):
+            tile = self._create_mode_tile(tile_row, mode)
+            px = (0 if idx == 0 else 3, 0 if idx == 2 else 3)
+            tile["frame"].grid(row=0, column=idx, sticky="nsew", padx=px)
 
-        for index, mode in enumerate((MatchMode.DNA, MatchMode.RNA, MatchMode.BOTH)):
-            tile = self._create_mode_tile(mode_card, mode)
-            tile["frame"].grid(row=1, column=index, sticky="nsew", padx=(0 if index == 0 else 6, 0))
-
-        # ── Footer ──
-        footer = tk.Frame(shell, bg=COLORS["app_bg"])
-        footer.grid(row=2, column=0, sticky="ew", pady=(14, 0))
-        footer.columnconfigure(0, weight=1)
-
+        # ── Status bar ──
         self.status_frame = tk.Frame(
-            footer,
-            bg=COLORS["ready_bg"],
-            highlightthickness=1,
-            highlightbackground=COLORS["card_border"],
-            padx=14,
-            pady=10,
+            shell, bg=COLORS["warning_bg"],
+            highlightthickness=1, highlightbackground=COLORS["card_border"],
+            padx=12, pady=6,
         )
-        self.status_frame.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+        self.status_frame.grid(row=3, column=0, sticky="ew", pady=(0, 10))
         self.status_frame.columnconfigure(0, weight=1)
         self.status_title_label = tk.Label(
-            self.status_frame,
-            textvariable=self.status_title_var,
-            bg=COLORS["ready_bg"],
-            fg=COLORS["ready_fg"],
-            font=FONTS["label"],
-            anchor="w",
+            self.status_frame, textvariable=self.status_title_var,
+            bg=COLORS["warning_bg"], fg=COLORS["warning_fg"],
+            font=FONTS["label"], anchor="w",
         )
         self.status_title_label.grid(row=0, column=0, sticky="w")
         self.status_detail_label = tk.Label(
-            self.status_frame,
-            textvariable=self.status_var,
-            bg=COLORS["ready_bg"],
-            fg=COLORS["text"],
-            font=FONTS["small"],
-            anchor="w",
-            justify="left",
-            wraplength=480,
+            self.status_frame, textvariable=self.status_var,
+            bg=COLORS["warning_bg"], fg=COLORS["text"],
+            font=FONTS["small"], anchor="w", justify="left",
         )
-        self.status_detail_label.grid(row=1, column=0, sticky="w", pady=(2, 0))
+        self.status_detail_label.grid(row=1, column=0, sticky="w", pady=(1, 0))
 
-        button_bar = tk.Frame(footer, bg=COLORS["app_bg"])
-        button_bar.grid(row=0, column=1, sticky="e")
+        # ── Action buttons (right-aligned) ──
+        button_bar = tk.Frame(shell, bg=COLORS["app_bg"])
+        button_bar.grid(row=4, column=0, sticky="ew")
+        button_bar.columnconfigure(0, weight=1)
 
-        open_button = self._make_button(
-            button_bar,
-            text="Open Output Folder",
-            command=self._open_output,
-            primary=False,
-            width=18,
+        open_btn = self._make_button(
+            button_bar, text="Open Output Folder",
+            command=self._open_output, primary=False, width=16,
         )
-        open_button.grid(row=0, column=0, padx=(0, 8))
+        open_btn.grid(row=0, column=1, sticky="e", padx=(0, 6))
 
         self.run_button = self._make_button(
-            button_bar,
-            text="Run Matching",
-            command=self._run,
-            primary=True,
-            width=14,
+            button_bar, text="Run Matching",
+            command=self._run, primary=True, width=16,
         )
-        self.run_button.grid(row=0, column=1)
+        self.run_button.grid(row=0, column=2, sticky="e")
 
     def _create_card(self, parent: tk.Widget, title: str) -> tk.Frame:
         outer = tk.Frame(
-            parent,
-            bg=COLORS["card_bg"],
-            highlightthickness=1,
-            highlightbackground=COLORS["card_border"],
-            padx=16,
-            pady=14,
+            parent, bg=COLORS["card_bg"],
+            highlightthickness=1, highlightbackground=COLORS["card_border"],
+            padx=14, pady=10,
         )
         tk.Label(
-            outer,
-            text=title,
-            bg=COLORS["card_bg"],
-            fg=COLORS["title"],
-            font=FONTS["card_title"],
-            anchor="w",
-        ).grid(row=0, column=0, sticky="w", pady=(0, 10))
+            outer, text=title,
+            bg=COLORS["card_bg"], fg=COLORS["title"],
+            font=FONTS["card_title"], anchor="w",
+        ).grid(row=0, column=0, sticky="w", pady=(0, 6))
         return outer
 
     def _add_file_picker(
-        self,
-        frame: tk.Frame,
-        row: int,
-        label: str,
-        variable: tk.StringVar,
-        badge_var: tk.StringVar,
-        command,
-        filetypes,
+        self, frame: tk.Frame, row: int, label: str,
+        variable: tk.StringVar, badge_var: tk.StringVar,
+        command, filetypes,
     ) -> None:
-        row_frame = tk.Frame(frame, bg=COLORS["card_bg"])
-        row_frame.grid(row=row + 1, column=0, sticky="ew", pady=(0, 10 if row < 2 else 0))
-        row_frame.columnconfigure(0, weight=1)
+        group = tk.Frame(frame, bg=COLORS["card_bg"])
+        group.grid(row=row + 1, column=0, sticky="ew", pady=(0, 6 if row < 2 else 0))
+        group.columnconfigure(0, weight=1)
 
-        header = tk.Frame(row_frame, bg=COLORS["card_bg"])
-        header.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 4))
-        header.columnconfigure(0, weight=1)
-
+        # Label + inline badge
+        label_row = tk.Frame(group, bg=COLORS["card_bg"])
+        label_row.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 2))
         tk.Label(
-            header,
-            text=label,
-            bg=COLORS["card_bg"],
-            fg=COLORS["title"],
-            font=FONTS["label"],
-            anchor="w",
-        ).grid(row=0, column=0, sticky="w")
+            label_row, text=label,
+            bg=COLORS["card_bg"], fg=COLORS["title"], font=FONTS["label"],
+        ).pack(side="left")
+        tk.Label(
+            label_row, textvariable=badge_var,
+            bg=COLORS["soft_bg"], fg=COLORS["muted"],
+            font=FONTS["badge"], padx=6, pady=1,
+        ).pack(side="left", padx=(6, 0))
 
-        badge = tk.Label(
-            header,
-            textvariable=badge_var,
-            bg=COLORS["soft_bg"],
-            fg=COLORS["muted"],
-            font=FONTS["badge"],
-            padx=10,
-            pady=2,
-        )
-        badge.grid(row=0, column=1, sticky="e")
-
+        # Entry + Browse on same line
         entry = tk.Entry(
-            row_frame,
-            textvariable=variable,
-            relief="flat",
-            bd=0,
+            group, textvariable=variable,
+            relief="flat", bd=0,
             highlightthickness=1,
             highlightbackground=COLORS["card_border"],
             highlightcolor=COLORS["primary"],
-            bg=COLORS["input_bg"],
-            fg=COLORS["text"],
+            bg=COLORS["input_bg"], fg=COLORS["text"],
             font=FONTS["text"],
             insertbackground=COLORS["title"],
         )
-        entry.grid(row=1, column=0, sticky="ew", ipadx=8, ipady=8, padx=(0, 8))
+        entry.grid(row=1, column=0, sticky="ew", ipadx=6, ipady=5, padx=(0, 6))
 
-        browse = self._make_button(row_frame, text="Browse", command=command, primary=False, width=9)
+        browse = self._make_button(group, text="Browse", command=command, primary=False, width=7)
         browse.grid(row=1, column=1, sticky="e")
         browse.configure(command=lambda: command(filetypes))
 
     def _create_mode_tile(self, parent: tk.Frame, mode: MatchMode) -> dict[str, tk.Widget]:
         frame = tk.Frame(
-            parent,
-            bg=COLORS["secondary_bg"],
-            highlightthickness=1,
-            highlightbackground=COLORS["secondary_border"],
-            cursor="hand2",
-            padx=10,
-            pady=10,
+            parent, bg=COLORS["secondary_bg"],
+            highlightthickness=1, highlightbackground=COLORS["secondary_border"],
+            cursor="hand2", padx=8, pady=8,
         )
+        frame.columnconfigure(0, weight=1)
         title = tk.Label(
-            frame,
-            text=mode.value,
-            bg=COLORS["secondary_bg"],
-            fg=COLORS["title"],
-            font=FONTS["label"],
-            cursor="hand2",
+            frame, text=mode.value,
+            bg=COLORS["secondary_bg"], fg=COLORS["title"],
+            font=FONTS["label"], cursor="hand2",
         )
-        title.grid(row=0, column=0, sticky="w")
+        title.grid(row=0, column=0)
 
         for widget in (frame, title):
-            widget.bind("<Button-1>", lambda _event, selected=mode: self._select_mode(selected))
+            widget.bind("<Button-1>", lambda _e, m=mode: self._select_mode(m))
 
         self.mode_tiles[mode] = {"frame": frame, "title": title}
         return self.mode_tiles[mode]
 
     def _make_button(
-        self,
-        parent: tk.Widget,
-        text: str,
-        command,
-        primary: bool,
-        width: int,
+        self, parent: tk.Widget, text: str,
+        command, primary: bool, width: int,
     ) -> tk.Button:
         bg = COLORS["primary"] if primary else COLORS["secondary_bg"]
         fg = COLORS["button_text"] if primary else COLORS["title"]
         active_bg = COLORS["primary_active"] if primary else COLORS["secondary_hover"]
         border = COLORS["primary"] if primary else COLORS["secondary_border"]
+        dis_fg = COLORS["disabled_text"] if primary else COLORS["muted"]
         return tk.Button(
-            parent,
-            text=text,
-            command=command,
-            bg=bg,
-            fg=fg,
-            activebackground=active_bg,
-            activeforeground=fg,
-            highlightthickness=1,
-            highlightbackground=border,
-            bd=0,
-            relief="flat",
+            parent, text=text, command=command,
+            bg=bg, fg=fg,
+            activebackground=active_bg, activeforeground=fg,
+            disabledforeground=dis_fg,
+            highlightthickness=1, highlightbackground=border,
+            bd=0, relief="flat",
             font=FONTS["button"],
-            padx=16,
-            pady=10,
-            cursor="hand2",
-            width=width,
+            padx=14, pady=8,
+            cursor="hand2", width=width,
         )
 
     def _choose_dataset(self, filetypes) -> None:
@@ -529,13 +451,13 @@ class MatcherApp:
         self.dataset_badge_var.set("Required" if not dataset_text else "Ready")
         self.dna_badge_var.set(path_badge_text(dna_path, DEFAULT_DNA_PATH))
         self.rna_badge_var.set(path_badge_text(rna_path, DEFAULT_RNA_PATH))
-        self.header_badge_var.set("Dataset Missing" if not dataset_text else "Dataset Selected")
 
-        if self.header_badge_label is not None:
-            if dataset_text:
-                self.header_badge_label.configure(bg=COLORS["ready_bg"], fg=COLORS["ready_fg"])
-            else:
-                self.header_badge_label.configure(bg=COLORS["warning_bg"], fg=COLORS["warning_fg"])
+        # Update status: dataset-missing warning, or ready state
+        if not dataset_text:
+            if not self.status_var.get().startswith("Failed:"):
+                self.status_var.set("Select a dataset file to start matching.")
+        elif self.status_var.get().startswith("Select a dataset"):
+            self.status_var.set(f"Output: {_truncate_path(self.state.output_dir)}")
 
         self._refresh_mode_tiles(MatchMode(self.mode_var.get()))
         self._refresh_status()
@@ -583,7 +505,7 @@ class MatcherApp:
     def _open_output(self) -> None:
         try:
             open_output_folder(self.state.output_dir)
-            self.status_var.set(f"Output folder: {self.state.output_dir}")
+            self.status_var.set(f"Output: {_truncate_path(self.state.output_dir)}")
             self._refresh_status()
         except Exception as exc:
             messagebox.showerror("Open Output Folder Failed", str(exc))
