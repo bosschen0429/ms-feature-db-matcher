@@ -28,6 +28,7 @@ class MatchCell:
     dna_formulas: list[str] = field(default_factory=list)
     rna_formulas: list[str] = field(default_factory=list)
 
+
 def parse_mz_value(value: object) -> float:
     text = str(value).strip()
     if not text:
@@ -45,7 +46,9 @@ def ppm_difference(feature_mz: float, db_mz: float) -> float:
 
 
 def _collect_hits(
-    table: pd.DataFrame, mass_candidates: set[str], feature_mz: float,
+    table: pd.DataFrame,
+    mass_candidates: set[str],
+    feature_mz: float,
 ) -> tuple[list[str], list[str]]:
     name_col = find_column(table.columns, NAME_COLUMNS)
     mass_col = find_column(table.columns, mass_candidates)
@@ -76,9 +79,13 @@ def build_match_column(
 ) -> list[MatchCell]:
     feature_col = find_column(dataset.columns, DATASET_FEATURE_COLUMNS)
     if feature_col is None:
+        found_str = ", ".join(repr(c) for c in list(dataset.columns)[:10])
         raise ValueError(
-            "Dataset must contain a supported m/z column "
-            "(Feature, Mz, Mz/RT, m/z, Precursor Ion m/z, Charged monoisotopic mass, etc.)."
+            "Dataset 缺少可辨識的 m/z 欄位。\n"
+            "  支援的欄位名稱：Feature, Mz, Mz/RT, m/z, Precursor Ion m/z, Charged monoisotopic mass 等\n"
+            f"  Dataset 中實際找到的欄位：{found_str}\n"
+            "  常見原因：欄位名稱使用逗號（如 'm/z,RT'）而非斜線（'Mz/RT'）、"
+            "或第一列為說明列而非標題列。"
         )
     results: list[MatchCell] = []
     for feature in dataset[feature_col]:
@@ -93,22 +100,28 @@ def build_match_column(
         dna_formulas: list[str] = []
         rna_formulas: list[str] = []
         if mode in (MatchMode.DNA, MatchMode.BOTH):
-            dna_names, dna_formulas = _collect_hits(dna, UNIVERSAL_MASS_COLUMNS, feature_mz)
+            dna_names, dna_formulas = _collect_hits(
+                dna, UNIVERSAL_MASS_COLUMNS, feature_mz
+            )
         if mode in (MatchMode.RNA, MatchMode.BOTH):
-            rna_names, rna_formulas = _collect_hits(rna, UNIVERSAL_MASS_COLUMNS | RNA_EXTRA_MASS_COLUMNS, feature_mz)
+            rna_names, rna_formulas = _collect_hits(
+                rna, UNIVERSAL_MASS_COLUMNS | RNA_EXTRA_MASS_COLUMNS, feature_mz
+            )
 
         all_names = dna_names + rna_names
         all_formulas = dna_formulas + rna_formulas
         text = "/".join(all_names) if all_names else "No match"
         non_empty = [f for f in all_formulas if f]
         formula_text = "/".join(non_empty) if non_empty else ""
-        results.append(MatchCell(
-            text=text,
-            formula_text=formula_text,
-            dna_names=dna_names,
-            rna_names=rna_names,
-            dna_formulas=dna_formulas,
-            rna_formulas=rna_formulas,
-        ))
+        results.append(
+            MatchCell(
+                text=text,
+                formula_text=formula_text,
+                dna_names=dna_names,
+                rna_names=rna_names,
+                dna_formulas=dna_formulas,
+                rna_formulas=rna_formulas,
+            )
+        )
 
     return results

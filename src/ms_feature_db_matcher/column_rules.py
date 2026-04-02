@@ -7,7 +7,13 @@ UNIVERSAL_MASS_COLUMNS = {
     "precursor ion m/z",
 }
 RNA_EXTRA_MASS_COLUMNS = {"[m+h]+"}
-DATASET_FEATURE_COLUMNS = {"feature", "m/z", "precursor ion m/z"} | UNIVERSAL_MASS_COLUMNS
+DATASET_FEATURE_COLUMNS = {
+    "feature",
+    "m/z",
+    "precursor ion m/z",
+    "m/z,rt",
+    "mz,rt",
+} | UNIVERSAL_MASS_COLUMNS
 NAME_COLUMNS = {"short name", "compound"}
 FORMULA_COLUMNS = {"formula", "molecular formula"}
 

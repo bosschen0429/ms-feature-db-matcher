@@ -11,14 +11,32 @@ def read_table(path: Path, **kwargs) -> pd.DataFrame:
     return pd.read_excel(path, **kwargs)
 
 
-def _validate_dataset_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
+def _validate_dataset_tables(
+    tables: dict[str, pd.DataFrame],
+) -> dict[str, pd.DataFrame]:
     matching_tables = {
-        sheet_name: table for sheet_name, table in tables.items() if has_any_column(table.columns, DATASET_FEATURE_COLUMNS)
+        sheet_name: table
+        for sheet_name, table in tables.items()
+        if has_any_column(table.columns, DATASET_FEATURE_COLUMNS)
     }
     if not matching_tables:
+        # 保留原始欄位順序，讓有問題的欄位（通常在前幾欄）能直接顯示
+        seen: set[str] = set()
+        all_columns: list[str] = []
+        for table in tables.values():
+            for col in table.columns:
+                if col not in seen:
+                    seen.add(col)
+                    all_columns.append(col)
+        found_str = ", ".join(repr(c) for c in all_columns[:10])
+        if len(all_columns) > 10:
+            found_str += f" ... (共 {len(all_columns)} 欄)"
         raise ValueError(
-            "Dataset must contain a supported m/z column "
-            "(Feature, Mz, Mz/RT, m/z, Precursor Ion m/z, Charged monoisotopic mass, etc.)."
+            "Dataset 缺少可辨識的 m/z 欄位。\n"
+            "  支援的欄位名稱：Feature, Mz, Mz/RT, m/z, Precursor Ion m/z, Charged monoisotopic mass 等\n"
+            f"  Dataset 中實際找到的欄位：{found_str}\n"
+            "  常見原因：欄位名稱使用逗號（如 'm/z,RT'）而非斜線（'Mz/RT'）、"
+            "或第一列為說明列而非標題列。"
         )
     return matching_tables
 
