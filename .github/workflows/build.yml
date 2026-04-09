@@ -1,83 +1,24 @@
-name: Build & Release
+name: Build Desktop Packages
 
 on:
   push:
-    tags:
-      - "v*"
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      upload_artifact:
+        description: "Upload as artifact (for testing without a tag)"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
 
 jobs:
   build:
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            platform: Windows
-            build_output: "dist/MS Feature DB Matcher.exe"
-          - os: macos-latest
-            platform: macOS
-            build_output: "dist/MS Feature DB Matcher.app"
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install .[build]
-
-      - name: Build with PyInstaller
-        run: pyinstaller ms_feature_db_matcher.spec
-
-      - name: Package release folder
-        shell: bash
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          FOLDER="MS-Feature-DB-Matcher-${{ matrix.platform }}-${TAG}"
-          mkdir -p "${FOLDER}/Output"
-          cp README.md "${FOLDER}/"
-          if [ "${{ matrix.platform }}" = "Windows" ]; then
-            cp "dist/MS Feature DB Matcher.exe" "${FOLDER}/"
-          else
-            cp -R "dist/MS Feature DB Matcher.app" "${FOLDER}/"
-          fi
-
-      - name: Create zip archive
-        shell: bash
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          FOLDER="MS-Feature-DB-Matcher-${{ matrix.platform }}-${TAG}"
-          if [ "${{ matrix.platform }}" = "Windows" ]; then
-            7z a "${FOLDER}.zip" "${FOLDER}"
-          else
-            zip -r "${FOLDER}.zip" "${FOLDER}"
-          fi
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: MS-Feature-DB-Matcher-${{ matrix.platform }}
-          path: "MS-Feature-DB-Matcher-${{ matrix.platform }}-*.zip"
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          merge-multiple: true
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: artifacts/*
-          generate_release_notes: true
+    uses: Chao-hu-Lab/shared-workflows/.github/workflows/python-build.yml@main
+    with:
+      upload_artifact: ${{ inputs.upload_artifact || false }}
+      spec-file: "ms_feature_db_matcher.spec"
+      executable-name: "MS Feature DB Matcher"
+      artifact-prefix: "MS-Feature-DB-Matcher"
+      extra-package-files: '[{"src":"README.md","dst":"README.md"}]'
